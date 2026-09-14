@@ -5,9 +5,7 @@
          colors="true"
 >
     <testsuites>
-        <testsuite name="Unit">
-            <directory>tests/Unit</directory>
-        </testsuite>
+        <!-- このアプリのテストはすべて Feature 配下にある（解析ロジックもアプリのコンテナ越しに叩く）。 -->
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
