@@ -1046,5 +1046,12 @@
     render();
 })();
 </script>
+<footer style="max-width:1080px;margin:0 auto;padding:0 1.2rem 3rem;color:var(--muted);font-size:1rem;line-height:1.7;">
+    {{-- 権利表記 --}}
+    <p>本ツールは、株式会社スクウェア・エニックスとは関係のない非公式のツールです。ロードストーンの公開ページを読み込んで表示しています。</p>
+    <p>FINAL FANTASY XIV の利用規約では外部ツールの使用が禁止されています。本ツールはロードストーンの公開ページを読むだけのもので、ゲームでの外部ツールの利用を勧めるものではありません（<a href="https://jp.finalfantasyxiv.com/lodestone/topics/detail/33dc2350ac49e2155dbc0c76ed2cdd78262e2f39" target="_blank" rel="noopener noreferrer" style="color:inherit;">公式の案内「FFXIV外部ツールの是非について」<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">（新しいタブで開く）</span></a>）。</p>
+    <p>ゲーム内の名称などの権利は株式会社スクウェア・エニックスに帰属します。<span style="white-space:nowrap;">© SQUARE ENIX</span></p>
+    <p>記載されている会社名・製品名・システム名などは、各社の商標または登録商標です。</p>
+</footer>
 </body>
 </html>
