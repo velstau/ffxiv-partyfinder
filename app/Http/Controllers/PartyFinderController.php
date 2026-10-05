@@ -25,8 +25,8 @@ class PartyFinderController extends Controller
 {
     /** 初回表示（検索前）の既定条件。GETパラメータが無い項目はここで埋める。 */
     private const DEFAULTS = [
-        'q'           => '零式　固定　募集',
-        'keywords'    => '絶 妖星 D3',
+        'q'           => '固定　募集',
+        'keywords'    => '絶 妖星',
         'ng_keywords' => '',
         'worldname'   => '',
         'blog_lang'   => 'ja',
@@ -37,9 +37,9 @@ class PartyFinderController extends Controller
         'sort'        => 'posted_desc',
         'match_tag'   => 0,
         'view_mode'   => 'table',
-        'fixed_only'  => 1,
+        'fixed_only'  => 0,
         'role_filter' => [],
-        'read_body'   => 0,
+        'read_body'   => 1,
     ];
 
     /**
