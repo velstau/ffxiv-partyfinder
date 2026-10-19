@@ -547,6 +547,8 @@ class RecruitAnalyzer
      * - `unknown` はロールを読み取れなかった日記だけに当たる。
      * - 「D3」の指定で「レンジ」「吟遊詩人」「DPS」も拾う（config/ff14.php の matches）。
      * - 「ST以外」と書かれている日記は、ST の指定では出さない。
+     * - 「ジョブ不問」はほかに枠が書かれていないときだけ全枠に当てる。
+     *   「D4募集（ジョブ不問）」「D4募集…全ジョブ分トークン周回」を MT の指定で出さないため。
      *
      * @param  string[] $selected  config('ff14.role_filters') のキー
      */
@@ -569,7 +571,7 @@ class RecruitAnalyzer
             return false;
         }
 
-        if (array_intersect($labels, (array) config('ff14.role_filter_wildcards', []))) {
+        if (array_diff($labels, (array) config('ff14.role_filter_wildcards', [])) === []) {
             return true;
         }
 
@@ -587,6 +589,32 @@ class RecruitAnalyzer
         }
 
         return false;
+    }
+
+    // ── フェーズでの絞り込み ───────────────────────────────
+
+    /**
+     * 解析結果が、選択されたフェーズ条件（OR）に当てはまるか。
+     *
+     * 区分は集計表の行と同じ（{@see phaseBucket()}）。「P5最初〜」「P5以降」はどちらも P5。
+     * `other` は「3層」「○○から」のような P 番号以外の表記、
+     * `unknown` はフェーズを読み取れなかった日記に当たる。
+     *
+     * @param  string[] $selected  config('ff14.phase_filters') のキー
+     */
+    public function matchesPhaseFilter(array $analysis, array $selected): bool
+    {
+        if ($selected === []) {
+            return true;
+        }
+
+        $key = $this->phaseBucket($analysis['phase'])[0];
+
+        if (str_starts_with($key, 'other:')) {
+            $key = 'other';
+        }
+
+        return in_array($key, $selected, true);
     }
 
     // ── 集計 ───────────────────────────────────────────────

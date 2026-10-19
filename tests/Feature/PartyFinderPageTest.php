@@ -100,6 +100,40 @@ class PartyFinderPageTest extends TestCase
     }
 
     #[Test]
+    public function it_filters_by_phase(): void
+    {
+        // 本文を読まないとき、タイトルで P3 と読めるのは3件。
+        // 「募集フェーズP3から」「P3後半から攻略」「ｐ３時間圧縮から」
+        $this->search(['fixed_only' => 0, 'read_body' => 0, 'phase_filter' => ['P3']])
+            ->assertOk()
+            ->assertSee('該当 <b>3</b> 件', false)
+            ->assertSee('フェーズ条件で除外 9 件')
+            ->assertDontSee('P5エクサ');
+    }
+
+    #[Test]
+    public function it_filters_by_phase_read_from_the_body(): void
+    {
+        // タイトルの「最初から」2件＋本文から「最初から」と読めた5件
+        $this->search(['fixed_only' => 0, 'read_body' => 1, 'phase_filter' => ['start']])
+            ->assertOk()
+            ->assertSee('該当 <b>7</b> 件', false)
+            ->assertSee('フェーズ条件で除外 5 件');
+    }
+
+    #[Test]
+    public function it_always_excludes_configured_title_words(): void
+    {
+        // 既定は「感想」。フィクスチャに無いので「エデン」で確かめる（絶エデンの3件）
+        config(['ff14.title_ng_words' => ['エデン']]);
+
+        $this->search(['fixed_only' => 0, 'ng_keywords' => ''])
+            ->assertOk()
+            ->assertSee('該当 <b>9</b> 件', false)
+            ->assertDontSee('絶エデン固定メンバー募集💎');
+    }
+
+    #[Test]
     public function it_shows_the_role_breakdown(): void
     {
         $this->search(['view_mode' => 'table', 'fixed_only' => 0])

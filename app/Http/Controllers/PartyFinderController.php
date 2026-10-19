@@ -14,8 +14,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *
  *   1. resolveConditions()  GETパラメータを検証して検索条件に正規化する
  *   2. LodestoneBlogService で取得し、RecruitAnalyzer で解析する
- *   3. prepareEntries()     「固定のみ」「募集ロール」で絞り込む
- *   4. sortEntries()        並び替える
+ *   3. searchAndAnalyze()   「固定のみ」「募集ロール」で絞り込む
+ *   4. prepareEntries()     並び替え、本文でフェーズを補ってから「フェーズ」で絞り込む
  *   5. ビュー または CSV（{@see export()}）として返す
  *
  * 検索条件はすべてGETパラメータに載せてある。URLをそのままブックマーク・共有できるようにし、
@@ -38,8 +38,9 @@ class PartyFinderController extends Controller
         'match_tag'   => 0,
         'view_mode'   => 'table',
         'fixed_only'  => 0,
-        'role_filter' => [],
-        'read_body'   => 1,
+        'role_filter'  => [],
+        'phase_filter' => [],
+        'read_body'    => 1,
     ];
 
     /**
@@ -142,6 +143,7 @@ class PartyFinderController extends Controller
         $meta     = $result['meta'] + [
             'excluded_by_fixed' => $result['excluded_by_fixed'],
             'excluded_by_role'  => $result['excluded_by_role'],
+            'excluded_by_phase' => $prepared['excluded_by_phase'],
             'phase_from_body'   => $prepared['resolved'],
             'body_not_read'     => $prepared['skipped'],
         ];
@@ -232,6 +234,8 @@ class PartyFinderController extends Controller
             'read_body'   => 'nullable|boolean',
             'role_filter'   => 'nullable|array',
             'role_filter.*' => 'string|in:' . implode(',', array_keys((array) config('ff14.role_filters', []))),
+            'phase_filter'   => 'nullable|array',
+            'phase_filter.*' => 'string|in:' . implode(',', array_keys((array) config('ff14.phase_filters', []))),
         ]);
 
         // 初回表示はデフォルト値をフォームに入れて見せる。
@@ -259,6 +263,9 @@ class PartyFinderController extends Controller
             $conditions['role_filter'] = array_values(array_unique(
                 array_filter((array) ($validated['role_filter'] ?? [])),
             ));
+            $conditions['phase_filter'] = array_values(array_unique(
+                array_filter((array) ($validated['phase_filter'] ?? [])),
+            ));
         }
 
         // ロードストーンのページャ上限に丸める
@@ -285,7 +292,11 @@ class PartyFinderController extends Controller
         return [
             'q'           => $conditions['q'],
             'keywords'    => $this->lodestone->normalizeList($conditions['keywords']),
-            'ng_keywords' => $this->lodestone->normalizeList($conditions['ng_keywords']),
+            // 画面の除外キーワードに、常に外す語（config/ff14.php の title_ng_words）を足す
+            'ng_keywords' => array_values(array_unique(array_merge(
+                $this->lodestone->normalizeList($conditions['ng_keywords']),
+                (array) config('ff14.title_ng_words', []),
+            ))),
             'match_tag'   => (bool) $conditions['match_tag'],
             'worldname'   => $conditions['worldname'],
             'blog_lang'   => $conditions['blog_lang'],
@@ -339,21 +350,50 @@ class PartyFinderController extends Controller
     }
 
     /**
-     * 画面・CSV共通の後処理（並び替え → 必要なら本文で補完）。
+     * 画面・CSV共通の後処理（並び替え → 必要なら本文で補完 → フェーズで絞り込み）。
      *
      * 本文の取得は絞り込みと並び替えのあとに行う。表示しないものを取りに行かないためと、
      * 上限に当たったときに新しい（＝並び順で上の）ものから読むため。
+     * フェーズの絞り込みだけは、本文から読んだフェーズも使うので最後に行う。
      *
-     * @return array{entries: array, resolved: int, skipped: int}
+     * @return array{entries: array, resolved: int, skipped: int, excluded_by_phase: int}
      */
     private function prepareEntries(array $entries, array $conditions): array
     {
-        $entries = $this->sortEntries($entries, $conditions['sort']);
+        $entries  = $this->sortEntries($entries, $conditions['sort']);
+        $resolved = 0;
+        $skipped  = 0;
 
-        if (!$conditions['read_body']) {
-            return ['entries' => $entries, 'resolved' => 0, 'skipped' => 0];
+        if ($conditions['read_body']) {
+            [$entries, $resolved, $skipped] = $this->resolvePhaseFromBody($entries);
         }
 
+        $excludedByPhase = 0;
+
+        if ($conditions['phase_filter'] !== []) {
+            $before  = count($entries);
+            $entries = array_values(array_filter(
+                $entries,
+                fn($entry) => $this->analyzer->matchesPhaseFilter($entry['analysis'], $conditions['phase_filter']),
+            ));
+            $excludedByPhase = $before - count($entries);
+        }
+
+        return [
+            'entries'           => $entries,
+            'resolved'          => $resolved,
+            'skipped'           => $skipped,
+            'excluded_by_phase' => $excludedByPhase,
+        ];
+    }
+
+    /**
+     * タイトルでフェーズが分からなかった日記の本文を読み、フェーズを補う。
+     *
+     * @return array{0: array, 1: int, 2: int}  [日記, 本文から判定できた件数, 上限で読まなかった件数]
+     */
+    private function resolvePhaseFromBody(array $entries): array
+    {
         $unknown = [];
         foreach ($entries as $i => $entry) {
             if ($entry['analysis']['phase'] === null && $entry['url'] !== null) {
@@ -382,7 +422,7 @@ class PartyFinderController extends Controller
             }
         }
 
-        return ['entries' => $entries, 'resolved' => $resolved, 'skipped' => $skipped];
+        return [$entries, $resolved, $skipped];
     }
 
     /**

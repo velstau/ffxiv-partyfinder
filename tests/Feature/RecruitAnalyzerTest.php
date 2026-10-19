@@ -180,7 +180,51 @@ class RecruitAnalyzerTest extends TestCase
             'ORで複数指定'         => ['絶エデン固定メンバー募集 @D3', ['MT', 'D3'], true],
             'なんでもは枠指定に当たる' => ['【絶バハムート】3週以内目標【＠6なんでも】', ['D4'], true],
             'なんでもは不明ではない'   => ['【絶バハムート】3週以内目標【＠6なんでも】', ['unknown'], false],
+            // 「全ジョブ」で「ジョブ不問」と読めても、D4 と書いてあれば D4 の募集
+            '枠ありの全ジョブはMTに当たらない' => ['【絶妖星乱舞】P5エクサ～クリア目的☆D4募集☆【 クリア後全ジョブ分トークン周回】', ['MT'], false],
+            '枠ありの全ジョブはその枠に当たる' => ['【絶妖星乱舞】P5エクサ～クリア目的☆D4募集☆【 クリア後全ジョブ分トークン周回】', ['D4'], true],
         ];
+    }
+
+    /** @return array<string, array{0:string,1:array<int,string>,2:bool}> */
+    public static function phaseFilterCases(): array
+    {
+        return [
+            '指定なしは全部通す'       => ['絶エデン固定メンバー募集中', [], true],
+            'P5最初はP5'               => ['P5最初～【絶妖星乱舞】固定募集 週6 @レンジ', ['P5'], true],
+            'P5以降もP5'               => ['絶妖星乱舞 P5以降 固定募集 @MT', ['P5'], true],
+            'P4はP5に当たらない'       => ['絶妖星乱舞 P4最初から｜ST・BH募集', ['P5'], false],
+            'ORで複数指定'             => ['絶妖星乱舞 P4最初から｜ST・BH募集', ['P4', 'P5'], true],
+            '最初からはstart'          => ['【最初から】絶妖星乱舞 固定募集 @D1', ['start'], true],
+            '層はその他'               => ['8.0零式 4層から固定募集', ['other'], true],
+            '層はP番号に当たらない'    => ['8.0零式 4層から固定募集', ['P4'], false],
+            'フェーズなしは不明'       => ['絶妖星乱舞 固定メンバー募集', ['unknown'], true],
+            'フェーズなしは他に出ない' => ['絶妖星乱舞 固定メンバー募集', ['P1', 'start', 'other'], false],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('phaseFilterCases')]
+    public function it_filters_by_phase(string $title, array $selected, bool $expected): void
+    {
+        $analyzer = app(RecruitAnalyzer::class);
+        $analysis = $analyzer->analyze(['title' => $title, 'tags' => []]);
+
+        $this->assertSame($expected, $analyzer->matchesPhaseFilter($analysis, $selected), $title);
+    }
+
+    #[Test]
+    public function it_counts_a_job_free_entry_only_in_its_slot(): void
+    {
+        $analyzer = app(RecruitAnalyzer::class);
+
+        $summary = $analyzer->summarize($analyzer->annotate([
+            ['title' => '【絶妖星乱舞】P5エクサ～クリア目的☆D4募集☆【 クリア後全ジョブ分トークン周回】', 'tags' => []],
+        ]));
+
+        $this->assertSame(0, $summary['totals']['MT']);
+        $this->assertSame(0, $summary['totals']['タンク']);
+        $this->assertSame(1, $summary['totals']['D4']);
     }
 
     #[Test]

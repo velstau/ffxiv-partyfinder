@@ -40,8 +40,8 @@ RecruitAnalyzer::annotate()
    │     └─ config/ff14.php の語彙を使う
    ▼
 PartyFinderController
-   │  ⑥ prepareEntries()  … 「固定のみ」「募集ロール」で絞り込み
-   │  ⑦ sortEntries()     … 並び替え
+   │  ⑥ searchAndAnalyze() … 「固定のみ」「募集ロール」で絞り込み
+   │  ⑦ prepareEntries()  … 並び替え → 本文でフェーズを補う → 「フェーズ」で絞り込み
    │  ⑧ summarize() / groupByContent()  … 集計とグルーピング
    ▼
 view('partyfinder.index')   または   StreamedResponse（CSV）

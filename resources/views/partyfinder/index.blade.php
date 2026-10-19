@@ -370,7 +370,7 @@
             <div class="field">
                 <label for="ng_keywords">除外キーワード（NG）</label>
                 <input type="text" id="ng_keywords" name="ng_keywords" value="{{ $conditions['ng_keywords'] }}" placeholder="初見 練習">
-                <span class="hint">1つでも含まれていたら結果から除外します。</span>
+                <span class="hint">1つでも含まれていたら結果から除外します。@if (config('ff14.title_ng_words'))「{{ implode('」「', (array) config('ff14.title_ng_words')) }}」は入力しなくても常に除外します。@endif</span>
             </div>
 
             <div class="field">
@@ -464,6 +464,24 @@
                     「D3」は「レンジ」「吟遊詩人」などの書き方も、「D1」は「近接」「侍」なども拾います。
                 </span>
             </div>
+
+            <div class="field wide">
+                <label>フェーズで絞り込む</label>
+                <div class="role-filter">
+                    @foreach (config('ff14.phase_filters') as $key => $label)
+                        <label>
+                            <input type="checkbox" name="phase_filter[]" value="{{ $key }}"
+                                   @checked(in_array($key, $conditions['phase_filter'], true))>
+                            {{ $label }}
+                        </label>
+                    @endforeach
+                </div>
+                <span class="hint">
+                    選んだフェーズのどれかに当たる日記だけ残します（何も選ばなければすべて）。
+                    「P5最初〜」「P5以降」はどちらも P5 です。
+                    「不明」を選ばないと、フェーズを読み取れなかった日記（本文を読まない設定のときや、本文の読み込み上限を超えた分を含む）は出ません。
+                </span>
+            </div>
         </div>
 
         <div class="actions">
@@ -513,6 +531,9 @@
             @endif
             @if (($meta['excluded_by_role'] ?? 0) > 0)
                 <span>ロール条件で除外 {{ number_format($meta['excluded_by_role']) }} 件</span>
+            @endif
+            @if (($meta['excluded_by_phase'] ?? 0) > 0)
+                <span>フェーズ条件で除外 {{ number_format($meta['excluded_by_phase']) }} 件</span>
             @endif
             @if (($meta['excluded_by_fixed'] ?? 0) > 0)
                 <span>「固定」なしで除外 {{ number_format($meta['excluded_by_fixed']) }} 件</span>
@@ -815,7 +836,11 @@
                   'match_tag', 'view_mode', 'fixed_only', 'read_body'];
 
     // 複数選べる項目（チェックボックス群）は配列で持つ
-    var ROLE_FIELD = 'role_filter[]';
+    var ROLE_FIELD  = 'role_filter[]';
+    var PHASE_FIELD = 'phase_filter[]';
+
+    // 一覧のサマリで「start」ではなく「最初から」と見せるため
+    var PHASE_LABELS = @json(config('ff14.phase_filters'));
 
     var form     = document.querySelector('form.search');
     var panel    = document.getElementById('saved-panel');
@@ -883,13 +908,14 @@
             }
             params[name] = (el.type === 'checkbox') ? (el.checked ? '1' : '') : el.value;
         });
-        params.role_filter = checkedRoles();
+        params.role_filter  = checkedValues(ROLE_FIELD);
+        params.phase_filter = checkedValues(PHASE_FIELD);
         return params;
     }
 
-    /** 選択中の募集ロール条件 */
-    function checkedRoles() {
-        var checked = form.querySelectorAll('input[name="' + ROLE_FIELD + '"]:checked');
+    /** チェックボックス群（募集ロール・フェーズ）の選択中の値 */
+    function checkedValues(field) {
+        var checked = form.querySelectorAll('input[name="' + field + '"]:checked');
         return Array.prototype.map.call(checked, function (el) { return el.value; });
     }
 
@@ -904,9 +930,12 @@
             }
             query.set(name, value);
         });
-        // 古い保存条件には role_filter が無いので、その場合は「すべて」になる
+        // 古い保存条件には role_filter・phase_filter が無いので、その場合は「すべて」になる
         (params.role_filter || []).forEach(function (role) {
             query.append(ROLE_FIELD, role);
+        });
+        (params.phase_filter || []).forEach(function (phase) {
+            query.append(PHASE_FIELD, phase);
         });
         window.location.search = query.toString();
     }
@@ -923,6 +952,11 @@
         if (params.fixed_only)  { parts.push('固定のみ'); }
         if (params.role_filter && params.role_filter.length) {
             parts.push('ロール: ' + params.role_filter.join('/'));
+        }
+        if (params.phase_filter && params.phase_filter.length) {
+            parts.push('フェーズ: ' + params.phase_filter.map(function (key) {
+                return PHASE_LABELS[key] || key;
+            }).join('/'));
         }
         parts.push('P' + (params.page_from || 1) + '〜' + (params.page_to || 1));
         return parts.join(' / ');
