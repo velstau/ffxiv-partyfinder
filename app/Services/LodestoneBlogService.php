@@ -69,6 +69,7 @@ class LodestoneBlogService
      *   - page_from     int      取得開始ページ
      *   - page_to       int      取得終了ページ
      *   - within_days   int      投稿日時が「N日以内」のものだけ残す（0/未指定で無制限）
+     *   - hidden_ids    string[] 利用者が個別に除外した日記ID（URL の /blog/{ID}/）
      * @return array{entries: array, meta: array}
      */
     public function search(array $conditions): array
@@ -80,6 +81,8 @@ class LodestoneBlogService
         $withinDays  = max(0, (int) ($conditions['within_days'] ?? 0));
         $postedAfter = $withinDays > 0 ? time() - ($withinDays * 86400) : null;
 
+        $hiddenIds = array_flip($conditions['hidden_ids'] ?? []);
+
         $pages   = range($pageFrom, $pageTo);
         $entries = [];
         $meta    = [
@@ -88,6 +91,7 @@ class LodestoneBlogService
             'scanned_pages'      => 0,      // 実際に取得できたページ数
             'scanned_count'      => 0,      // 絞り込み前のエントリ数
             'excluded_by_period' => 0,      // キーワードは一致したが投稿期間外だった数
+            'excluded_by_hidden' => 0,      // 条件には合ったが利用者が個別に除外していた数
             'failed_pages'       => [],     // 取得に失敗したページ番号
         ];
 
@@ -118,6 +122,12 @@ class LodestoneBlogService
                     // 投稿日時が読めなかったものは判定できないので残す
                     if ($postedAfter !== null && $entry['posted_at'] !== null && $entry['posted_at'] < $postedAfter) {
                         $meta['excluded_by_period']++;
+                        continue;
+                    }
+
+                    // 本文を読みに行く前（ここ）で落とし、余計な取得をしない
+                    if ($entry['blog_id'] !== null && isset($hiddenIds[$entry['blog_id']])) {
+                        $meta['excluded_by_hidden']++;
                         continue;
                     }
 
@@ -387,12 +397,17 @@ class LodestoneBlogService
         if (preg_match('#/lodestone/character/(\d+)/#', $href, $m)) {
             $charaId = $m[1];
         }
+        $blogId = null;
+        if (preg_match('#/blog/(\d+)/#', $href, $m)) {
+            $blogId = $m[1];
+        }
 
         $epoch = ($epochNode instanceof DOMElement) ? (int) $epochNode->getAttribute('data-epoch') : null;
 
         return [
             'title'       => trim($title->textContent),
             'url'         => $href !== '' ? self::BASE_URL . $href : null,
+            'blog_id'     => $blogId,
             'chara_name'  => $charaName ? trim($charaName->textContent) : '不明',
             'chara_world' => $charaWorld ? trim($charaWorld->textContent) : '不明',
             'chara_url'   => $charaId ? self::BASE_URL . '/lodestone/character/' . $charaId . '/' : null,

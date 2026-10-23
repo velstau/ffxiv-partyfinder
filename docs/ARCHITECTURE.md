@@ -26,14 +26,15 @@ FF14 の固定パーティ募集は、ロードストーンの日記機能で行
 ```
 ブラウザ
    │  GET /?search=1&q=...&keywords=...&role_filter[]=D3
+   │  Cookie: ff_partyfinder_hidden=日記ID.日記ID…（個別に除外した募集）
    ▼
 PartyFinderController
-   │  ① resolveConditions()  … GETパラメータを検証して検索条件に正規化
+   │  ① resolveConditions()  … GETパラメータを検証して検索条件に正規化（Cookie の日記IDも読む）
    ▼
 LodestoneBlogService::search()
    │  ② buildUrl()    … ロードストーンの検索URLを組み立てる
    │  ③ fetchPages()  … 5件並列でHTMLを取得（5分キャッシュ）
-   │  ④ parsePage()   … DOMXPath でエントリを抽出
+   │  ④ parsePage()   … DOMXPath でエントリを抽出し、キーワード・期間・個別除外で外す
    ▼
 RecruitAnalyzer::annotate()
    │  ⑤ analyze()     … タイトルとタグから中身を読み取る
@@ -181,6 +182,7 @@ normalize()            表記ゆれを揃える
 | `RecruitAnalyzer::analyze()` の返り値キー | `index.blade.php` / `PartyFinderController::export()` | CSVの列と画面表示が食い違う |
 | `LodestoneBlogService::parseBlock()` の XPath | ロードストーン側のHTML構造 | サイト改修で**静かに0件になる** |
 | `LodestoneBlogService` の返り値 | `tests/Fixtures/*.html` | フィクスチャが古いと**テストだけ通って実物で壊れる** |
+| `PartyFinderController::HIDDEN_COOKIE` / `MAX_HIDDEN` | `bootstrap/app.php` の `encryptCookies(except:)`・画面の JS（Cookie の区切り「.」） | 暗号化の除外から漏れると**個別除外が黙って効かなくなる** |
 
 ### ロードストーンのHTML構造への依存
 

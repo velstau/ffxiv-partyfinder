@@ -49,6 +49,16 @@ class PartyFinderController extends Controller
      */
     private const MAX_BODY_FETCH = 60;
 
+    /**
+     * 個別に除外した日記IDを載せる Cookie。画面の JS が localStorage の一覧から書き、ここでは読むだけ。
+     * 検索条件（URL）に入れないのは、保存した条件やブックマークに関係なく効かせたいため。
+     * JS から書くので暗号化の対象外にしてある（bootstrap/app.php）。
+     */
+    public const HIDDEN_COOKIE = 'ff_partyfinder_hidden';
+
+    /** Cookie の上限（約4KB）に収まる件数。画面の JS も同じ件数で古いものから捨てる。 */
+    public const MAX_HIDDEN = 300;
+
     /** 投稿期間の絞り込み（値は日数。空文字は制限なし） */
     public const PERIOD_OPTIONS = [
         ''   => '指定なし（すべて）',
@@ -281,7 +291,26 @@ class PartyFinderController extends Controller
         $conditions['fixed_only'] = (int) (bool) $conditions['fixed_only'];
         $conditions['read_body']  = (int) (bool) $conditions['read_body'];
 
+        $conditions['hidden_ids'] = $this->hiddenIds($request);
+
         return $conditions;
+    }
+
+    /**
+     * Cookie から個別に除外した日記IDを読む（「.」区切り）。数字以外の値は捨て、件数は上限で切る。
+     *
+     * @return string[]
+     */
+    private function hiddenIds(Request $request): array
+    {
+        $raw = (string) $request->cookie(self::HIDDEN_COOKIE, '');
+
+        $ids = array_filter(
+            explode('.', $raw),
+            static fn($id) => preg_match('/^\d{1,20}$/', $id) === 1,
+        );
+
+        return array_slice(array_values(array_unique($ids)), 0, self::MAX_HIDDEN);
     }
 
     /**
@@ -304,6 +333,7 @@ class PartyFinderController extends Controller
             'page_from'   => $conditions['page_from'],
             'page_to'     => $conditions['page_to'],
             'within_days' => (int) $conditions['within_days'],
+            'hidden_ids'  => $conditions['hidden_ids'],
         ];
     }
 

@@ -300,10 +300,10 @@
         }
         .saved-form button:hover { border-color: var(--accent); color: var(--accent); }
 
-        #saved-notice { font-size: .88rem; margin-bottom: .6rem; }
-        #saved-notice.ok    { color: var(--ok); }
-        #saved-notice.error { color: var(--err); }
-        #saved-notice:empty { display: none; }
+        #saved-notice, #hidden-notice { font-size: .88rem; margin-bottom: .6rem; }
+        #saved-notice.ok, #hidden-notice.ok       { color: var(--ok); }
+        #saved-notice.error, #hidden-notice.error { color: var(--err); }
+        #saved-notice:empty, #hidden-notice:empty { display: none; }
 
         .saved-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; }
         .saved-item { display: flex; align-items: stretch; gap: .4rem; }
@@ -327,6 +327,28 @@
         }
         .saved-del:hover { border-color: var(--err); color: var(--err); }
         .saved-empty { color: var(--muted); font-size: .9rem; }
+
+        /* ── 個別に除外した募集（localStorage ＋ Cookie） ──────── */
+        .hide-btn {
+            background: none; border: 1px solid var(--line); border-radius: 6px;
+            color: var(--muted); cursor: pointer; font-family: inherit; font-size: 1rem;
+            padding: .1rem .55rem; white-space: nowrap;
+        }
+        .hide-btn:hover { border-color: var(--err); color: var(--err); }
+        .hide-btn:disabled { opacity: .5; cursor: default; }
+        td.act { text-align: center; width: 1%; }
+        .entry .side .hide-btn { margin-top: .4rem; }
+        .hidden-tools { margin-left: auto; }
+        .hidden-list summary { cursor: pointer; color: var(--muted); font-size: 1rem; }
+        .hidden-list .saved-list { margin-top: .6rem; }
+        .hidden-item-link {
+            flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .1rem;
+            background: var(--panel-2); border: 1px solid var(--line);
+            border-radius: 8px; padding: .5rem .8rem; color: var(--text); text-decoration: none;
+        }
+        .hidden-item-link:hover { border-color: var(--accent); }
+        .hidden-item-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .hidden-item-desc { font-size: 1rem; color: var(--muted); }
 
         footer {
             margin-top: 2.6rem; color: var(--muted); font-size: .88rem;
@@ -507,6 +529,23 @@
         <ul class="saved-list" id="saved-list"></ul>
     </section>
 
+    {{-- 個別に除外した募集。一覧は localStorage に持ち、日記IDだけを Cookie でサーバーに渡して検索結果から外す。 --}}
+    <section class="saved" id="hidden-panel" hidden>
+        <div class="saved-head">
+            <h2>除外した募集</h2>
+            <span class="saved-count" id="hidden-count">0 / {{ PartyFinderController::MAX_HIDDEN }}</span>
+            <div class="saved-form hidden-tools">
+                <button type="button" id="hidden-clear">すべて解除</button>
+            </div>
+        </div>
+        <div id="hidden-notice" role="status"></div>
+        <p class="saved-empty" id="hidden-empty">除外した募集はありません。検索結果の「除外」を押すと、その募集を以後の検索結果・件数・CSV から外します。</p>
+        <details class="hidden-list" id="hidden-details">
+            <summary>一覧を開く</summary>
+            <ul class="saved-list" id="hidden-list"></ul>
+        </details>
+    </section>
+
     @if ($errors->any())
         <div class="notice error">
             @foreach ($errors->all() as $message)
@@ -537,6 +576,9 @@
             @endif
             @if (($meta['excluded_by_fixed'] ?? 0) > 0)
                 <span>「固定」なしで除外 {{ number_format($meta['excluded_by_fixed']) }} 件</span>
+            @endif
+            @if (($meta['excluded_by_hidden'] ?? 0) > 0)
+                <span>個別に除外 {{ number_format($meta['excluded_by_hidden']) }} 件</span>
             @endif
             @if ($meta['excluded_by_period'] > 0)
                 <span>期間外で除外 {{ number_format($meta['excluded_by_period']) }} 件（{{ PartyFinderController::PERIOD_OPTIONS[$conditions['within_days']] ?? '' }}）</span>
@@ -697,6 +739,7 @@
                                     <th>タイトル</th>
                                     <th>投稿者 / ワールド</th>
                                     <th>投稿日時</th>
+                                    <th class="act" aria-label="除外"></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -763,6 +806,17 @@
                                                 <span class="none">—</span>
                                             @endif
                                         </td>
+
+                                        <td class="act">
+                                            @if ($entry['blog_id'])
+                                                <button type="button" class="hide-btn" hidden
+                                                        data-hide-id="{{ $entry['blog_id'] }}"
+                                                        data-hide-title="{{ $entry['title'] }}"
+                                                        data-hide-chara="{{ $entry['chara_name'] }}／{{ $entry['chara_world'] }}"
+                                                        data-hide-url="{{ $entry['url'] }}"
+                                                        title="この募集を今後の検索結果から外す">除外</button>
+                                            @endif
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -804,6 +858,14 @@
                                 <span class="rel">{{ $postedAt->diffForHumans() }}</span>
                             @endif
                             <div class="counts">💬 {{ $entry['comment'] }} ／ 👍 {{ $entry['like'] }}</div>
+                            @if ($entry['blog_id'])
+                                <button type="button" class="hide-btn" hidden
+                                        data-hide-id="{{ $entry['blog_id'] }}"
+                                        data-hide-title="{{ $entry['title'] }}"
+                                        data-hide-chara="{{ $entry['chara_name'] }}／{{ $entry['chara_world'] }}"
+                                        data-hide-url="{{ $entry['url'] }}"
+                                        title="この募集を今後の検索結果から外す">除外</button>
+                            @endif
                         </div>
                     </article>
                 @endforeach
@@ -1078,6 +1140,207 @@
     });
 
     render();
+})();
+
+/**
+ * 募集の個別除外（最大 MAX_ITEMS 件。超えたら古いものから捨てる）。
+ * 一覧（タイトルなど）は localStorage に持ち、日記IDだけを Cookie に書いてサーバーに渡す。
+ * サーバー側で外すので、件数・内訳・CSV も除外後の内容になる。
+ * 検索条件（URL）には入れないので、保存した条件やブックマークに関係なく効く。
+ */
+(function () {
+    'use strict';
+
+    var STORAGE_KEY = 'ff_partyfinder.hidden_entries.v1';
+    var FLASH_KEY   = STORAGE_KEY + '.flash';
+    var MAX_ITEMS   = @json(PartyFinderController::MAX_HIDDEN);
+    var COOKIE_NAME = @json(PartyFinderController::HIDDEN_COOKIE);
+    // サブパス配下（/ff14tools/partyfinder）で配信するので、Cookie の path もそこに合わせる
+    var COOKIE_PATH = @json(parse_url(route('partyfinder.index'), PHP_URL_PATH) ?: '/');
+    var COOKIE_DAYS = 365;
+    var HAS_RESULTS = @json($entries !== null);
+
+    var panel     = document.getElementById('hidden-panel');
+    var listEl    = document.getElementById('hidden-list');
+    var countEl   = document.getElementById('hidden-count');
+    var noticeEl  = document.getElementById('hidden-notice');
+    var clearBtn  = document.getElementById('hidden-clear');
+    var detailsEl = document.getElementById('hidden-details');
+    var emptyEl   = document.getElementById('hidden-empty');
+
+    // localStorage が使えない環境では機能ごと出さない（除外ボタンも hidden のまま）
+    try {
+        localStorage.setItem(STORAGE_KEY + '.probe', '1');
+        localStorage.removeItem(STORAGE_KEY + '.probe');
+    } catch (e) {
+        return;
+    }
+
+    function notice(message, type) {
+        noticeEl.textContent = message;
+        noticeEl.className = type || '';
+    }
+
+    /** 除外一覧を読み出す（古い順）。壊れた値が入っていても落とさない。 */
+    function read() {
+        try {
+            var parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            if (!Array.isArray(parsed)) {
+                return [];
+            }
+            return parsed.filter(function (item) {
+                return item && typeof item.id === 'string' && /^\d{1,20}$/.test(item.id);
+            }).slice(-MAX_ITEMS);
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function write(items) {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(-MAX_ITEMS)));
+        } catch (e) {
+            notice('保存に失敗しました（ブラウザの保存領域がいっぱいの可能性があります）。', 'error');
+            return false;
+        }
+        writeCookie(items.slice(-MAX_ITEMS));
+        return true;
+    }
+
+    /** サーバーが読む Cookie を一覧から作り直す（区切りは Cookie で安全な「.」） */
+    function writeCookie(items) {
+        var value  = items.map(function (item) { return item.id; }).join('.');
+        var maxAge = value === '' ? 0 : COOKIE_DAYS * 86400;
+        document.cookie = COOKIE_NAME + '=' + value
+            + '; path=' + COOKIE_PATH
+            + '; max-age=' + maxAge
+            + '; SameSite=Lax'
+            + (location.protocol === 'https:' ? '; Secure' : '');
+    }
+
+    /** 次の表示で一度だけ出すお知らせ（除外・解除のあとに再読み込みするため） */
+    function flash(message) {
+        try {
+            sessionStorage.setItem(FLASH_KEY, message);
+        } catch (e) {
+            // 出せなくても除外自体は済んでいる
+        }
+    }
+
+    /** 検索結果を出している画面では、除外を反映させるため同じ条件で読み直す */
+    function reloadOrRender(message) {
+        if (HAS_RESULTS) {
+            flash(message);
+            window.location.reload();
+            return;
+        }
+        render();
+        notice(message, 'ok');
+    }
+
+    function render() {
+        var items = read();
+
+        countEl.textContent = items.length + ' / ' + MAX_ITEMS;
+        countEl.classList.toggle('full', items.length >= MAX_ITEMS);
+        clearBtn.disabled = items.length === 0;
+        detailsEl.hidden  = items.length === 0;
+        emptyEl.hidden    = items.length > 0;
+
+        listEl.textContent = '';
+
+        // 新しく除外したものを上に出す
+        items.slice().reverse().forEach(function (item) {
+            var li = document.createElement('li');
+            li.className = 'saved-item';
+
+            // タイトル等はロードストーン由来の文字列なので textContent で入れる
+            var link = document.createElement('a');
+            link.className = 'hidden-item-link';
+            link.href = item.url || '#';
+            link.target = '_blank';
+            link.rel = 'noopener';
+
+            var title = document.createElement('span');
+            title.className = 'hidden-item-title';
+            title.textContent = item.title || ('日記 ' + item.id);
+
+            var desc = document.createElement('span');
+            desc.className = 'hidden-item-desc';
+            desc.textContent = item.chara || '';
+
+            link.appendChild(title);
+            link.appendChild(desc);
+
+            var del = document.createElement('button');
+            del.type = 'button';
+            del.className = 'saved-del';
+            del.textContent = '×';
+            del.title = '除外を解除';
+            del.setAttribute('aria-label', (item.title || item.id) + ' の除外を解除');
+            del.addEventListener('click', function () {
+                var rest = read().filter(function (hidden) {
+                    return hidden.id !== item.id;
+                });
+                if (write(rest)) {
+                    reloadOrRender('「' + (item.title || item.id) + '」の除外を解除しました。');
+                }
+            });
+
+            li.appendChild(link);
+            li.appendChild(del);
+            listEl.appendChild(li);
+        });
+    }
+
+    clearBtn.addEventListener('click', function () {
+        var count = read().length;
+        if (count === 0 || !window.confirm('除外した ' + count + ' 件をすべて解除しますか？')) {
+            return;
+        }
+        if (write([])) {
+            reloadOrRender('除外をすべて解除しました。');
+        }
+    });
+
+    // 除外ボタン（表・カードの両方）
+    Array.prototype.forEach.call(document.querySelectorAll('.hide-btn[data-hide-id]'), function (btn) {
+        btn.hidden = false;
+        btn.addEventListener('click', function () {
+            var id    = btn.getAttribute('data-hide-id');
+            var items = read().filter(function (item) {
+                return item.id !== id;
+            });
+            items.push({
+                id:      id,
+                title:   btn.getAttribute('data-hide-title') || '',
+                chara:   btn.getAttribute('data-hide-chara') || '',
+                url:     btn.getAttribute('data-hide-url') || '',
+                addedAt: Date.now()
+            });
+            if (!write(items)) {
+                return;
+            }
+            btn.disabled = true;
+            reloadOrRender('「' + (btn.getAttribute('data-hide-title') || id) + '」を除外しました。「除外した募集」から元に戻せます。');
+        });
+    });
+
+    // Cookie の期限を延ばし、localStorage と食い違っていたら揃える
+    writeCookie(read());
+
+    panel.hidden = false;
+    render();
+
+    try {
+        var message = sessionStorage.getItem(FLASH_KEY);
+        if (message) {
+            sessionStorage.removeItem(FLASH_KEY);
+            notice(message, 'ok');
+        }
+    } catch (e) {
+        // お知らせが出せないだけ
+    }
 })();
 </script>
 <footer style="max-width:1080px;margin:0 auto;padding:0 1.2rem 3rem;color:var(--muted);font-size:1rem;line-height:1.7;">

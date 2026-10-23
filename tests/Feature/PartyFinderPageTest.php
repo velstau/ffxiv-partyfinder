@@ -134,6 +134,38 @@ class PartyFinderPageTest extends TestCase
     }
 
     #[Test]
+    public function it_excludes_entries_hidden_by_the_user(): void
+    {
+        // 90000001 は「【週5-6/3週目標】絶竜詩(最初から)…」。存在しないIDと壊れた値は無視される
+        $this->withUnencryptedCookie('ff_partyfinder_hidden', '90000001.99999999.abc.')
+            ->search(['fixed_only' => 0])
+            ->assertOk()
+            ->assertSee('該当 <b>11</b> 件', false)
+            ->assertSee('個別に除外 1 件')
+            ->assertDontSee('3週目標');
+    }
+
+    #[Test]
+    public function it_shows_a_hide_button_with_the_blog_id(): void
+    {
+        foreach (['table', 'card'] as $viewMode) {
+            $this->search(['fixed_only' => 0, 'view_mode' => $viewMode])
+                ->assertOk()
+                ->assertSee('data-hide-id="90000001"', false);
+        }
+    }
+
+    #[Test]
+    public function it_ignores_a_malformed_hidden_cookie(): void
+    {
+        $this->withUnencryptedCookie('ff_partyfinder_hidden', str_repeat('x', 5000))
+            ->search(['fixed_only' => 0])
+            ->assertOk()
+            ->assertSee('該当 <b>12</b> 件', false)
+            ->assertDontSee('個別に除外 ');
+    }
+
+    #[Test]
     public function it_shows_the_role_breakdown(): void
     {
         $this->search(['view_mode' => 'table', 'fixed_only' => 0])
@@ -185,5 +217,20 @@ class PartyFinderPageTest extends TestCase
         $this->assertStringContainsString('コンテンツ', $csv);
         $this->assertStringContainsString('募集ロール', $csv);
         $this->assertStringContainsString('絶竜詩戦争', $csv);
+    }
+
+    #[Test]
+    public function it_excludes_hidden_entries_from_csv(): void
+    {
+        $response = $this->withUnencryptedCookie('ff_partyfinder_hidden', '90000001')
+            ->get('/export?' . http_build_query([
+                'search' => 1, 'q' => '固定 募集', 'keywords' => '', 'page_from' => 1, 'page_to' => 1,
+            ]));
+
+        $response->assertOk();
+        $csv = $response->streamedContent();
+
+        $this->assertStringNotContainsString('blog/90000001/', $csv);
+        $this->assertStringContainsString('blog/90000002/', $csv);
     }
 }
