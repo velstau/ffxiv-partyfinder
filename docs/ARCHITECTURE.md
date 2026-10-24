@@ -62,7 +62,9 @@ view('partyfinder.index')   または   StreamedResponse（CSV）
 | `app/Services/LodestoneBlogService.php` | 検索URL組み立て・HTML取得・DOM抽出・本文取得 | 約480 |
 | `app/Services/RecruitAnalyzer.php` | タイトル解析・集計・グルーピング | 約780 |
 | `config/ff14.php` | 解析に使う語彙（コンテンツ辞書・ロール名・絞り込み定義） | 約240 |
-| `resources/views/partyfinder/index.blade.php` | 検索フォームと結果表示（ビルド不要のインラインJS） | 約1,050 |
+| `resources/views/partyfinder/index.blade.php`・`partials/` | ページ構成・検索フォーム・結果表示 | 分割 |
+| `resources/views/layouts/`・`components/partyfinder/` | 共通レイアウトとUIコンポーネント | 分割 |
+| `public/css/partyfinder.css`・`public/js/partyfinder.js` | Tablerへの最小補正／保存・除外・検索中表示（ビルド不要） | 詳細は [UI設計](UI-DESIGN-SYSTEM.md) |
 
 ---
 
@@ -179,7 +181,7 @@ normalize()            表記ゆれを揃える
 | `config/ff14.php` の `contents` | `category_order` | 新しいカテゴリを足すと**表の並び順から漏れる** |
 | `config/ff14.php` の `roles` | `role_filters[].matches` | 新しいロール表記が**絞り込みに引っかからない** |
 | `config/ff14.php` の `role_filters` | `role_group_order` | グループ名が未定義だと**表示順が崩れる** |
-| `RecruitAnalyzer::analyze()` の返り値キー | `index.blade.php` / `PartyFinderController::export()` | CSVの列と画面表示が食い違う |
+| `RecruitAnalyzer::analyze()` の返り値キー | `partials/recruitment-*.blade.php`・共通コンポーネント / `PartyFinderController::export()` | CSVの列と画面表示が食い違う |
 | `LodestoneBlogService::parseBlock()` の XPath | ロードストーン側のHTML構造 | サイト改修で**静かに0件になる** |
 | `LodestoneBlogService` の返り値 | `tests/Fixtures/*.html` | フィクスチャが古いと**テストだけ通って実物で壊れる** |
 | `PartyFinderController::HIDDEN_COOKIE` / `MAX_HIDDEN` | `bootstrap/app.php` の `encryptCookies(except:)`・画面の JS（Cookie の区切り「.」） | 暗号化の除外から漏れると**個別除外が黙って効かなくなる** |

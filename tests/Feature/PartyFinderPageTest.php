@@ -60,8 +60,8 @@ class PartyFinderPageTest extends TestCase
         $response = $this->search(['view_mode' => 'table', 'fixed_only' => 0]);
 
         // 「＠２　ＳＴ暗以外　D３」から拾ったロール
-        $response->assertSee('<span class="chip tank">ST</span>', false)
-            ->assertSee('<span class="chip dps">D3</span>', false);
+        $response->assertSee('<span class="chip badge bg-blue-lt">ST</span>', false)
+            ->assertSee('<span class="chip badge bg-red-lt">D3</span>', false);
     }
 
     #[Test]
@@ -190,7 +190,7 @@ class PartyFinderPageTest extends TestCase
         $this->search(['fixed_only' => 0, 'read_body' => 1])
             ->assertOk()
             ->assertSee('本文からフェーズ判定 5 件')
-            ->assertSee('<span class="flag body"', false);
+            ->assertSee('<span class="flag body badge bg-yellow-lt"', false);
 
         Http::assertSent(fn($request) => str_contains($request->url(), '/blog/'));
     }
@@ -202,6 +202,23 @@ class PartyFinderPageTest extends TestCase
             ->assertOk()
             ->assertSee('class="results"', false)
             ->assertDontSee('class="recruits"', false);
+    }
+
+    #[Test]
+    public function aggregate_matrix_precedes_both_result_views_and_notices_have_their_own_area(): void
+    {
+        foreach (['table', 'card'] as $mode) {
+            $response = $this->search(['view_mode' => $mode]);
+            $response->assertOk()->assertSee('全コンテンツ')->assertSee('id="usage-note-heading"', false);
+            $html = $response->getContent();
+            $document = new \DOMDocument();
+            @$document->loadHTML($html);
+            $xpath = new \DOMXPath($document);
+            $total = $xpath->query('//details[contains(@class, "matrix")]//tfoot/tr/td[last()]')->item(0);
+            $this->assertSame('12', trim($total->textContent));
+            $viewMarker = $mode === 'table' ? 'class="recruits ' : 'class="results"';
+            $this->assertLessThan(strpos($html, $viewMarker), strpos($html, 'フェーズ×募集枠の件数'));
+        }
     }
 
     #[Test]
@@ -217,6 +234,24 @@ class PartyFinderPageTest extends TestCase
         $this->assertStringContainsString('コンテンツ', $csv);
         $this->assertStringContainsString('募集ロール', $csv);
         $this->assertStringContainsString('絶竜詩戦争', $csv);
+    }
+
+    #[Test]
+    public function csv_link_preserves_empty_filters_and_hidden_entries(): void
+    {
+        $response = $this->withUnencryptedCookie('ff_partyfinder_hidden', '90000001')
+            ->search(['blog_lang' => '']);
+        $response->assertOk()->assertSee('該当 <b>11</b> 件', false);
+        $document = new \DOMDocument();
+        @$document->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($document);
+        $link = $xpath->query('//a[contains(., "CSVダウンロード")]')->item(0)->getAttribute('href');
+        parse_str(parse_url($link, PHP_URL_QUERY), $params);
+        $this->assertSame('', $params['keywords']);
+        $this->assertSame('', $params['blog_lang']);
+        $csv = $this->get($link)->assertOk()->streamedContent();
+        $this->assertCount(12, explode("\n", trim($csv))); // header + 11 entries
+        $this->assertStringNotContainsString('blog/90000001/', $csv);
     }
 
     #[Test]
