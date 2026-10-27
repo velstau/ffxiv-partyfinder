@@ -3,7 +3,7 @@
 
     {{-- 権利表記 --}}
     <p>本ツールは、株式会社スクウェア・エニックスとは関係のない非公式のツールです。ロードストーンの公開ページを読み込んで表示しています。</p>
-    <p>FINAL FANTASY XIV の利用規約では外部ツールの使用が禁止されています。本ツールはロードストーンの公開ページを読むだけのもので、ゲームでの外部ツールの利用を勧めるものではありません（<a href="https://jp.finalfantasyxiv.com/lodestone/topics/detail/33dc2350ac49e2155dbc0c76ed2cdd78262e2f39" target="_blank" rel="noopener noreferrer">公式の案内「FFXIV外部ツールの是非について」<span class="visually-hidden">（新しいタブで開く）</span></a>）。</p>
+    <p>FINAL FANTASY XIV の運営は外部ツールの使用を禁止しています。本ツールはロードストーンの公開ページを読むだけのもので、ゲームでの外部ツールの利用を勧めるものではありません（<a href="https://jp.finalfantasyxiv.com/lodestone/topics/detail/33dc2350ac49e2155dbc0c76ed2cdd78262e2f39" target="_blank" rel="noopener noreferrer">公式の案内「FFXIV外部ツールの是非について」<span class="visually-hidden">（新しいタブで開く）</span></a>）。</p>
     <p>ゲーム内の名称などの権利は株式会社スクウェア・エニックスに帰属します。<span>© SQUARE ENIX</span></p>
     <p>記載されている会社名・製品名・システム名などは、各社の商標または登録商標です。</p>
 

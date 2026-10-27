@@ -33,7 +33,7 @@ PartyFinderController
    ▼
 LodestoneBlogService::search()
    │  ② buildUrl()    … ロードストーンの検索URLを組み立てる
-   │  ③ fetchPages()  … 5件並列でHTMLを取得（5分キャッシュ）
+   │  ③ fetchPages()  … 3件並列でHTMLを取得（5分キャッシュ）
    │  ④ parsePage()   … DOMXPath でエントリを抽出し、キーワード・期間・個別除外で外す
    ▼
 RecruitAnalyzer::annotate()
@@ -144,7 +144,8 @@ view('partyfinder.index')   または   StreamedResponse（CSV）
 ### 4.7 取得したHTMLをキャッシュする
 
 ロードストーンは公開サイトであって API ではない。
-短時間に何度も叩かないよう、取得HTMLを5分キャッシュし、並列度も5に抑えている。
+短時間に何度も叩かないよう、取得HTMLを5分キャッシュし、並列度も3に抑えている。
+User-Agent はブラウザを装わず、ツール名と連絡先URLを名乗る。
 
 本文は一覧より変わりやすい（進捗が追記される）が、
 同じ記事を何度も取りに行かないよう30分は使い回す。

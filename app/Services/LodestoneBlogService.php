@@ -14,13 +14,13 @@ use Illuminate\Support\Facades\Log;
  *
  * ロードストーンには公開APIが無いため、検索結果のHTMLを取得して DOMXPath で抽出する。
  *
- * - 検索URLを組み立てて 1〜N ページ分のHTMLを取得（5件並列）
+ * - 検索URLを組み立てて 1〜N ページ分のHTMLを取得（3件並列）
  * - 各エントリ（タイトル/リンク/キャラ名/ホームワールド/タグ/投稿日時）を抽出
  * - 取得したHTMLは5分キャッシュしてロードストーンへの負荷を抑える
  *
  * 注意点:
  *
- *  - **相手は公開サイトであってAPIではない。** 並列度は5に抑え、キャッシュを挟んでいる。
+ *  - **相手は公開サイトであってAPIではない。** 並列度は3に抑え、キャッシュを挟んでいる。
  *  - **HTML構造（`entry__blog_block__*` クラス）に依存している。** サイト改修時は
  *    {@see parseBlock()} の XPath を見直す必要がある。構造が変わってもエラーにはならず、
  *    静かに0件になるのが厄介な点。検索結果の総件数（{@see parseTotalHits()}）も取っているので、
@@ -38,9 +38,11 @@ class LodestoneBlogService
     /** ロードストーン側のページャ上限（21ページ目以降は存在しない） */
     public const MAX_PAGE = 20;
 
-    /** 一般的なブラウザの User-Agent。既定値のままだと弾かれることがあるため明示する。 */
-    private const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) '
-        . 'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113';
+    /**
+     * ブラウザを装わず、ツール名と連絡先URLを名乗る。
+     * HTTPクライアントの既定値のままだと弾かれることがあるため明示する（2026-10-27 にこの値で取得できることを確認）。
+     */
+    private const USER_AGENT = 'Mozilla/5.0 (compatible; partyfinder/1.0; +https://vel.works/ff14tools/partyfinder/)';
 
     /** 取得HTMLのキャッシュ秒数（募集日記は頻繁には増えないので5分） */
     private const CACHE_TTL = 300;
@@ -53,7 +55,7 @@ class LodestoneBlogService
     private const BODY_CACHE_TTL = 1800;
 
     /** 同時に投げるリクエスト数。ロードストーンに優しくするため控えめにする。 */
-    private const CONCURRENCY = 5;
+    private const CONCURRENCY = 3;
 
     /**
      * 検索を実行して該当エントリを返す。
@@ -95,7 +97,7 @@ class LodestoneBlogService
             'failed_pages'       => [],     // 取得に失敗したページ番号
         ];
 
-        // 5ページずつ並列取得する
+        // CONCURRENCY ページずつ並列取得する
         foreach (array_chunk($pages, self::CONCURRENCY) as $chunk) {
             $htmls = $this->fetchPages($conditions, $chunk);
 

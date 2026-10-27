@@ -27,7 +27,7 @@ php artisan serve         # http://localhost:8000/
 
 | ファイル | 役割 |
 |---|---|
-| `app/Services/LodestoneBlogService.php` | 検索URL組み立て・HTML取得（5件並列＋5分キャッシュ）・DOMXPathでの抽出・日記本文の取得 |
+| `app/Services/LodestoneBlogService.php` | 検索URL組み立て・HTML取得（3件並列＋5分キャッシュ）・DOMXPathでの抽出・日記本文の取得 |
 | `app/Services/RecruitAnalyzer.php` | タイトルから「コンテンツ／フェーズ／募集ロール／空き枠」を解析、コンテンツ別のグルーピング |
 | `config/ff14.php` | 解析に使う語彙（コンテンツ辞書・ロール名）。パッチ更新時はここを直す |
 | `app/Http/Controllers/PartyFinderController.php` | 検索条件の解決・バリデーション・「固定」絞り込み・並び替え・CSV出力 |
@@ -111,7 +111,7 @@ Python版との差異:
 表示ラベルと原文が異なる場合は、フェーズを開くと本文の表記が出る。CSVには「フェーズの判定元」列が付く。
 
 - 本文は `div.txt_selfintroduction` から取り、`<br>` とブロック要素を改行にして**行単位**で見る。
-- 取得は5件並列・30分キャッシュ。1回の検索で読むのは**最大60件**まで
+- 取得は3件並列・30分キャッシュ。1回の検索で読むのは**最大60件**まで
   （超えた分はサマリに「本文未確認 N 件（上限）」と出す）。
 - 実測: 24件の本文取得で +1.4秒（キャッシュ後は0.1秒）。24件中8件のフェーズが埋まった。
 
